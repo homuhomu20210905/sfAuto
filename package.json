@@ -14,7 +14,8 @@
     "build:frontend": "npm run build --w frontend",
     "build": "npm run build --w frontend && npm run build --w backend",
     "push": "clasp push",
-    "open": "clasp open --webapp"
+    "open": "clasp open --webapp",
+    "deploy": "npm run build && npm run push && npm run open"
   },
   "keywords": [],
   "author": "",

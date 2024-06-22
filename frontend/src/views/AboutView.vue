@@ -95,7 +95,7 @@ function createTimeRateCommand(yyyymmdd: string) {
  * @param endTime
  */
 function createTimeInputCommand(yyyymmdd: string, startTime: string, endTime: string) {
-  const code = `$("#ttvTimeSt${yyyymmdd}").click();$("#startTime").value = ${startTime};$("#endTime").value = ${endTime};$("#dlgInpTimeOk").click();await Sleep();`
+  const code = `$("#ttvTimeSt${yyyymmdd}").click();$("#startTime").value = "${startTime}";$("#endTime").value = "${endTime}";$("#dlgInpTimeOk").click();await Sleep();`
   return code
 }
 
@@ -186,19 +186,36 @@ async function clipboardWorkInputCopy(value: string) {
 }
 </script>
 <template>
+  <v-row>
+    <v-col cols="12">
+      <p>１．タブ区切りのテキストエリアに貼り付ける。</p>
+      <p>　日付 開始時間 終了時間 休憩時間 備考</p>
+      <p>　例）`2024/06/17 9:45 19:45 1:00 製造、打ち合わせ`</p>
+      <p>２．各種クリップボードボタンを押下すると関数がコピーされる。</p>
+      <p>３．topを「vfFrameId～(AtkWorkTimeView)」変える。</p>
+      <p>４．関数をSalesForceの管理コンソールに貼り付けると自動入力が開始。</p>
+    </v-col>
+  </v-row>
+  <hr />
   <Flex style="justify-content: space-around">
-    <v-textarea v-model="area"></v-textarea>
+    <v-textarea label="勤怠情報をタブ区切りで入力してください。" v-model="area"></v-textarea>
     <!-- <pre>{{ area }}</pre> -->
   </Flex>
   <Flex> </Flex>
   <Flex>
-    <v-contener>
+    <v-container>
       <v-row>
-        <v-col cols="12">
-          <template v-if="noteList?.length">
-            <v-tooltip v-model="showCopied" location="top" :open-on-hover="false">
+        <v-col>
+          <template v-if="workInputList?.length">
+            <v-tooltip v-model="showWorkInputCopied" location="top" :open-on-hover="false">
               <template #activator="{ props, isActive }"
-                ><v-btn @click="clipboardCopy(noteList)" v-bind="props">備考情報をコピーする</v-btn>
+                ><v-btn
+                  @click="clipboardWorkInputCopy(workInputList)"
+                  v-bind="props"
+                  color="lime-lighten-4"
+                  prepend-icon="mdi-clock-time-nine-outline"
+                  >１．時間入力をコピーする</v-btn
+                >
               </template>
               <span>コピーしました</span>
             </v-tooltip>
@@ -208,19 +225,24 @@ async function clipboardWorkInputCopy(value: string) {
       <v-row>
         <v-col>
           <Flex>
-            <v-select
-              label="Select"
-              v-model="sltWorkRate"
-              :items="workRateNameList"
-              variant="outlined"
-              style="width: auto; min-width: 200px"
-            ></v-select>
             <template v-if="workList?.length">
+              <Flex>
+                <v-select
+                  label="時間割合"
+                  v-model="sltWorkRate"
+                  :items="workRateNameList"
+                  variant="outlined"
+                ></v-select>
+              </Flex>
               <template v-if="sltWorkRate">
                 <v-tooltip v-model="showWorkCopied" location="top" :open-on-hover="false">
                   <template #activator="{ props, isActive }"
-                    ><v-btn @click="clipboardWorkCopy(workList)" v-bind="props"
-                      >{{ sltWorkRate }}でコピーする</v-btn
+                    ><v-btn
+                      @click="clipboardWorkCopy(workList)"
+                      v-bind="props"
+                      color="light-blue-lighten-4"
+                      prepend-icon="mdi-chart-pie"
+                      >２．{{ sltWorkRate }}でコピーする</v-btn
                     >
                   </template>
                   <span>コピーしました</span>
@@ -231,12 +253,16 @@ async function clipboardWorkInputCopy(value: string) {
         </v-col>
       </v-row>
       <v-row>
-        <v-col>
-          <template v-if="workInputList?.length">
-            <v-tooltip v-model="showWorkInputCopied" location="top" :open-on-hover="false">
+        <v-col cols="12">
+          <template v-if="noteList?.length">
+            <v-tooltip v-model="showCopied" location="top" :open-on-hover="false">
               <template #activator="{ props, isActive }"
-                ><v-btn @click="clipboardWorkInputCopy(workInputList)" v-bind="props"
-                  >時間入力をコピーする</v-btn
+                ><v-btn
+                  @click="clipboardCopy(noteList)"
+                  v-bind="props"
+                  color="cyan-lighten-4"
+                  prepend-icon="mdi-note-text-outline"
+                  >３．備考情報をコピーする</v-btn
                 >
               </template>
               <span>コピーしました</span>
@@ -244,7 +270,7 @@ async function clipboardWorkInputCopy(value: string) {
           </template>
         </v-col>
       </v-row>
-    </v-contener>
+    </v-container>
   </Flex>
 </template>
 

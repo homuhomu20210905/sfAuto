@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { onMounted } from 'vue'
+
+onMounted(() => {
+  console.log('mounted')
+  useRouter().push({ name: 'home' })
+})
 </script>
 
 <template>
