@@ -4,9 +4,12 @@ import SessionKey from '../assets/Constants'
 import { ref, computed, readonly } from 'vue'
 import dayjs from 'dayjs'
 const area = ref('')
-const showCopied = ref(false)
+// トーストを表示するためのフラグ
+const showNoteCopied = ref(false)
 const showWorkCopied = ref(false)
 const showWorkInputCopied = ref(false)
+const showAllCopied = ref(false)
+
 //時間割合のリスト
 const sltWorkRate = ref('')
 const workRateNameList = readonly([
@@ -15,6 +18,14 @@ const workRateNameList = readonly([
   '【承認済】ICT対応／出社',
   'リモート'
 ])
+
+//コピー状態のenum
+enum CopyStatus {
+  ShowNoteCopied = 'showCopied',
+  ShowWorkCopied = 'showWorkCopied',
+  ShowWorkInputCopied = 'showWorkInputCopied',
+  ShowAllCopied = 'showAllCopied'
+}
 
 //日付情報の型
 type DayInfo = {
@@ -99,7 +110,7 @@ function createTimeInputCommand(yyyymmdd: string, startTime: string, endTime: st
   return code
 }
 
-// ノート用
+// 3.ノート用
 const noteList = computed(() => {
   const list = days.value
   if (list.length == 0) {
@@ -110,10 +121,10 @@ const noteList = computed(() => {
     const code = createDescCommand(yyyymmdd, item.description)
     return code
   })
-  return convertTemplate(codeList)
+  return codeList
 })
 
-// 時間割合用
+// 2.時間割合用
 const workList = computed(() => {
   const list = days.value
   if (list.length == 0) {
@@ -124,10 +135,10 @@ const workList = computed(() => {
     const code = createTimeRateCommand(yyyymmdd)
     return code
   })
-  return convertTemplate(codeList)
+  return codeList
 })
 
-//時間入力
+//1.時間入力
 const workInputList = computed(() => {
   const list = days.value
   if (list.length == 0) {
@@ -138,49 +149,57 @@ const workInputList = computed(() => {
     const code = createTimeInputCommand(yyyymmdd, item.start, item.end)
     return code
   })
-  return convertTemplate(codeList)
+  return codeList
+})
+
+const allList = computed(() => {
+  const list: string[] = []
+  if (workInputList.value) {
+    list.push(...workInputList.value)
+  }
+  if (workList.value) {
+    list.push(...workList.value)
+  }
+  if (noteList.value) {
+    list.push(...noteList.value)
+  }
+  return list
 })
 
 const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time)) //timeはミリ秒
 
-async function clipboardCopy(value: string) {
-  if (value) {
-    try {
-      navigator.clipboard.writeText(value)
-      showCopied.value = true
-    } catch (e) {
-      console.log(e)
-    } finally {
-      await sleep(500)
-      showCopied.value = false
-    }
+const switchCopyStatus = (ref: CopyStatus, flag: boolean): void => {
+  switch (ref) {
+    case CopyStatus.ShowNoteCopied:
+      showNoteCopied.value = flag
+      break
+    case CopyStatus.ShowWorkCopied:
+      showWorkCopied.value = flag
+      break
+    case CopyStatus.ShowWorkInputCopied:
+      showWorkInputCopied.value = flag
+      break
+    case CopyStatus.ShowAllCopied:
+      showAllCopied.value = flag
+      break
   }
 }
 
-async function clipboardWorkCopy(value: string) {
-  if (value) {
+/**
+ * クリップボードにコピーする
+ * @param list
+ * @param ref
+ */
+async function clipboardRefCopy(list: string[], ref: CopyStatus) {
+  if (list) {
     try {
-      navigator.clipboard.writeText(value)
-      showWorkCopied.value = true
+      navigator.clipboard.writeText(convertTemplate(list))
+      switchCopyStatus(ref, true)
     } catch (e) {
       console.log(e)
     } finally {
       await sleep(500)
-      showWorkCopied.value = false
-    }
-  }
-}
-
-async function clipboardWorkInputCopy(value: string) {
-  if (value) {
-    try {
-      navigator.clipboard.writeText(value)
-      showWorkInputCopied.value = true
-    } catch (e) {
-      console.log(e)
-    } finally {
-      await sleep(500)
-      showWorkInputCopied.value = false
+      switchCopyStatus(ref, false)
     }
   }
 }
@@ -210,7 +229,7 @@ async function clipboardWorkInputCopy(value: string) {
             <v-tooltip v-model="showWorkInputCopied" location="top" :open-on-hover="false">
               <template #activator="{ props, isActive }"
                 ><v-btn
-                  @click="clipboardWorkInputCopy(workInputList)"
+                  @click="clipboardRefCopy(workInputList, CopyStatus.ShowWorkInputCopied)"
                   v-bind="props"
                   color="lime-lighten-4"
                   prepend-icon="mdi-clock-time-nine-outline"
@@ -238,7 +257,7 @@ async function clipboardWorkInputCopy(value: string) {
                 <v-tooltip v-model="showWorkCopied" location="top" :open-on-hover="false">
                   <template #activator="{ props, isActive }"
                     ><v-btn
-                      @click="clipboardWorkCopy(workList)"
+                      @click="clipboardRefCopy(workList, CopyStatus.ShowWorkCopied)"
                       v-bind="props"
                       color="light-blue-lighten-4"
                       prepend-icon="mdi-chart-pie"
@@ -255,14 +274,32 @@ async function clipboardWorkInputCopy(value: string) {
       <v-row>
         <v-col cols="12">
           <template v-if="noteList?.length">
-            <v-tooltip v-model="showCopied" location="top" :open-on-hover="false">
+            <v-tooltip v-model="showNoteCopied" location="top" :open-on-hover="false">
               <template #activator="{ props, isActive }"
                 ><v-btn
-                  @click="clipboardCopy(noteList)"
+                  @click="clipboardRefCopy(noteList, CopyStatus.ShowNoteCopied)"
                   v-bind="props"
                   color="cyan-lighten-4"
                   prepend-icon="mdi-note-text-outline"
                   >３．備考情報をコピーする</v-btn
+                >
+              </template>
+              <span>コピーしました</span>
+            </v-tooltip>
+          </template>
+        </v-col>
+      </v-row>
+      <v-row>
+        <v-col cols="12">
+          <template v-if="allList?.length">
+            <v-tooltip v-model="showAllCopied" location="top" :open-on-hover="false">
+              <template #activator="{ props, isActive }"
+                ><v-btn
+                  @click="clipboardRefCopy(allList, CopyStatus.ShowAllCopied)"
+                  v-bind="props"
+                  color="red-lighten-4"
+                  prepend-icon="mdi-note-text-outline"
+                  >４．１ + ２ + ３をまとめた処理をコピー</v-btn
                 >
               </template>
               <span>コピーしました</span>
