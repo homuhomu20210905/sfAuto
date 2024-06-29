@@ -15,7 +15,9 @@
     "build": "npm run build --w frontend && npm run build --w backend",
     "push": "clasp push",
     "open": "clasp open --webapp",
-    "deploy": "npm run build && npm run push && npm run open"
+    "edit-clasp": "clasp open",
+    "deploy": "clasp deploy --deploymentId AKfycbxprtZviEJ05uGw9URxGAtxb7HXYjtB-55u5Cm2-TDVsRODMZrURcCsrkL5Azgs5MD5",
+    "all-cmd": "npm run push && npm run deploy"
   },
   "keywords": [],
   "author": "",
