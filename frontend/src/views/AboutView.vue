@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import Flex from '../components/Design/Flex.vue'
 import SessionKey from '../assets/Constants'
+import { CopyStatus } from '../assets/CopyStatus'
 import { ref, computed, readonly } from 'vue'
+import CopyToolTipButton from '../components/CopyToolTipButton.vue'
 import dayjs from 'dayjs'
 const area = ref('')
-// トーストを表示するためのフラグ
-const showNoteCopied = ref(false)
-const showWorkCopied = ref(false)
-const showWorkInputCopied = ref(false)
-const showAllCopied = ref(false)
 
 //時間割合のリスト
 const sltWorkRate = ref('')
@@ -18,24 +15,6 @@ const workRateNameList = readonly([
   '【承認済】ICT対応／出社',
   'リモート'
 ])
-
-//コピー状態のenum
-enum CopyStatus {
-  ShowNoteCopied = 'showCopied',
-  ShowWorkCopied = 'showWorkCopied',
-  ShowWorkInputCopied = 'showWorkInputCopied',
-  ShowAllCopied = 'showAllCopied'
-}
-
-//日付情報の型
-type DayInfo = {
-  date: string
-  start: string
-  end: string
-  sleep: string
-  description: string
-  size: number
-}
 
 // 算出プロパティの参照
 
@@ -165,51 +144,13 @@ const allList = computed(() => {
   }
   return list
 })
-
-const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time)) //timeはミリ秒
-
-const switchCopyStatus = (ref: CopyStatus, flag: boolean): void => {
-  switch (ref) {
-    case CopyStatus.ShowNoteCopied:
-      showNoteCopied.value = flag
-      break
-    case CopyStatus.ShowWorkCopied:
-      showWorkCopied.value = flag
-      break
-    case CopyStatus.ShowWorkInputCopied:
-      showWorkInputCopied.value = flag
-      break
-    case CopyStatus.ShowAllCopied:
-      showAllCopied.value = flag
-      break
-  }
-}
-
-/**
- * クリップボードにコピーする
- * @param list
- * @param ref
- */
-async function clipboardRefCopy(list: string[], ref: CopyStatus) {
-  if (list) {
-    try {
-      navigator.clipboard.writeText(convertTemplate(list))
-      switchCopyStatus(ref, true)
-    } catch (e) {
-      console.log(e)
-    } finally {
-      await sleep(500)
-      switchCopyStatus(ref, false)
-    }
-  }
-}
 </script>
 <template>
   <v-row>
     <v-col cols="12">
       <p>１．タブ区切りのテキストエリアに貼り付ける。</p>
       <p>　日付 開始時間 終了時間 休憩時間 備考</p>
-      <p>　例）`2024/06/17 9:45 19:45 1:00 製造、打ち合わせ`</p>
+      <p><pre>　例）`2024/06/17	9:45	19:45	1:00	製造、打ち合わせ`</pre></p>
       <p>２．各種クリップボードボタンを押下すると関数がコピーされる。</p>
       <p>３．topを「vfFrameId～(AtkWorkTimeView)」変える。</p>
       <p>４．関数をSalesForceの管理コンソールに貼り付けると自動入力が開始。</p>
@@ -226,18 +167,12 @@ async function clipboardRefCopy(list: string[], ref: CopyStatus) {
       <v-row>
         <v-col>
           <template v-if="workInputList?.length">
-            <v-tooltip v-model="showWorkInputCopied" location="top" :open-on-hover="false">
-              <template #activator="{ props, isActive }"
-                ><v-btn
-                  @click="clipboardRefCopy(workInputList, CopyStatus.ShowWorkInputCopied)"
-                  v-bind="props"
-                  color="lime-lighten-4"
-                  prepend-icon="mdi-clock-time-nine-outline"
-                  >１．時間入力をコピーする</v-btn
-                >
-              </template>
-              <span>コピーしました</span>
-            </v-tooltip>
+            <CopyToolTipButton
+              buttonName="１．時間入力をコピーする"
+              :list="workInputList"
+              prepend-icon="mdi-clock-time-nine-outline"
+              color="lime-lighten-4"
+            />
           </template>
         </v-col>
       </v-row>
@@ -245,6 +180,14 @@ async function clipboardRefCopy(list: string[], ref: CopyStatus) {
         <v-col>
           <Flex>
             <template v-if="workList?.length">
+              <template v-if="sltWorkRate">
+                <CopyToolTipButton
+                  :buttonName="'２．' + sltWorkRate + 'でコピーする'"
+                  :list="workList"
+                  color="light-blue-lighten-4"
+                  prepend-icon="mdi-chart-pie"
+                />
+              </template>
               <Flex>
                 <v-select
                   label="時間割合"
@@ -253,20 +196,6 @@ async function clipboardRefCopy(list: string[], ref: CopyStatus) {
                   variant="outlined"
                 ></v-select>
               </Flex>
-              <template v-if="sltWorkRate">
-                <v-tooltip v-model="showWorkCopied" location="top" :open-on-hover="false">
-                  <template #activator="{ props, isActive }"
-                    ><v-btn
-                      @click="clipboardRefCopy(workList, CopyStatus.ShowWorkCopied)"
-                      v-bind="props"
-                      color="light-blue-lighten-4"
-                      prepend-icon="mdi-chart-pie"
-                      >２．{{ sltWorkRate }}でコピーする</v-btn
-                    >
-                  </template>
-                  <span>コピーしました</span>
-                </v-tooltip>
-              </template>
             </template>
           </Flex>
         </v-col>
@@ -274,36 +203,24 @@ async function clipboardRefCopy(list: string[], ref: CopyStatus) {
       <v-row>
         <v-col cols="12">
           <template v-if="noteList?.length">
-            <v-tooltip v-model="showNoteCopied" location="top" :open-on-hover="false">
-              <template #activator="{ props, isActive }"
-                ><v-btn
-                  @click="clipboardRefCopy(noteList, CopyStatus.ShowNoteCopied)"
-                  v-bind="props"
-                  color="cyan-lighten-4"
-                  prepend-icon="mdi-note-text-outline"
-                  >３．備考情報をコピーする</v-btn
-                >
-              </template>
-              <span>コピーしました</span>
-            </v-tooltip>
+            <CopyToolTipButton
+              buttonName="３．備考情報をコピーする"
+              :list="noteList"
+              color="cyan-lighten-4"
+              prepend-icon="mdi-note-text-outline"
+            />
           </template>
         </v-col>
       </v-row>
       <v-row>
         <v-col cols="12">
-          <template v-if="allList?.length">
-            <v-tooltip v-model="showAllCopied" location="top" :open-on-hover="false">
-              <template #activator="{ props, isActive }"
-                ><v-btn
-                  @click="clipboardRefCopy(allList, CopyStatus.ShowAllCopied)"
-                  v-bind="props"
-                  color="red-lighten-4"
-                  prepend-icon="mdi-note-text-outline"
-                  >４．１ + ２ + ３をまとめた処理をコピー</v-btn
-                >
-              </template>
-              <span>コピーしました</span>
-            </v-tooltip>
+          <template v-if="allList?.length && sltWorkRate">
+            <CopyToolTipButton
+              color="red-lighten-4"
+              prepend-icon="mdi-select-all"
+              buttonName="４．１ + ２ + ３をまとめた処理をコピー"
+              :list="allList"
+            />
           </template>
         </v-col>
       </v-row>
