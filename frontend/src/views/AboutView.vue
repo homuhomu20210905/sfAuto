@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import Flex from '../components/Design/Flex.vue'
 import SessionKey from '../assets/Constants'
-import { CopyStatus } from '../assets/CopyStatus'
-import { ref, computed, readonly } from 'vue'
+import { ref, computed, readonly, watch, reactive } from 'vue'
 import CopyToolTipButton from '../components/CopyToolTipButton.vue'
 import dayjs from 'dayjs'
 const area = ref('')
@@ -24,13 +23,17 @@ const days = computed(() => {
   const calcList = list
     .map((item) => {
       const tabs = item.split('\t')
+      const date = tabs[0]
+      const start = createDayjs(date, tabs[1]).format('HH:mm')
+      const end = createDayjs(date, tabs[2]).format('HH:mm')
       const obj = {
-        date: tabs[0],
-        start: tabs[1],
-        end: tabs[2],
+        date,
+        start,
+        end,
         sleep: tabs[3],
         description: tabs[4],
-        size: tabs.length
+        size: tabs.length,
+        inputFlg: false
       }
       return obj
     })
@@ -47,6 +50,61 @@ const days = computed(() => {
 
   return calcList
 })
+
+const textList = reactive(days.value)
+
+type WorkInfo = {
+  date: dayjs.Dayjs
+  start: dayjs.Dayjs
+  end: dayjs.Dayjs
+  sleep: string
+  description: string
+  size: number
+  workTime: () => number
+  sleepMinute: () => number
+  inputFlg: boolean
+}
+
+const createDayjs = (day: string, time: string) => {
+  return dayjs(day + ' ' + time)
+}
+
+const viewTextList = computed(() => {
+  return textList.map((item) => {
+    const obj = {
+      date: dayjs(item.date),
+      start: createDayjs(item.date, item.start),
+      end: createDayjs(item.date, item.end),
+      sleep: item.sleep,
+      description: item.description,
+      size: item.size,
+      workTime: function () {
+        const calcMinute = this.sleepMinute()
+        return this.end.diff(this.start.add(calcMinute, 'm'), 'minutes') / 60
+      },
+      sleepMinute: function () {
+        const [hour, minute] = this.sleep.split(':')
+        return parseInt(hour) * 60 + parseInt(minute)
+      },
+      inputFlg: item.inputFlg
+    }
+    return obj
+  })
+})
+
+const totalWorkTime = computed(() => {
+  return viewTextList.value.reduce((acc, item) => {
+    return acc + item.workTime()
+  }, 0)
+})
+
+// 監視対象は days であり count は監視対象外
+watch(days, () => {
+  days.value.forEach((item, index) => {
+    textList[index] = item
+  })
+})
+
 /**
  * 大枠のasync関数を作成
  * @param codeList
@@ -150,7 +208,7 @@ const allList = computed(() => {
     <v-col cols="12">
       <p>１．タブ区切りのテキストエリアに貼り付ける。</p>
       <p>　日付 開始時間 終了時間 休憩時間 備考</p>
-      <p><pre>　例）`2024/06/17	9:45	19:45	1:00	製造、打ち合わせ`</pre></p>
+      <pre>　例）`2024/06/17	9:45	19:45	1:00	製造、打ち合わせ`</pre>
       <p>２．各種クリップボードボタンを押下すると関数がコピーされる。</p>
       <p>３．topを「vfFrameId～(AtkWorkTimeView)」変える。</p>
       <p>４．関数をSalesForceの管理コンソールに貼り付けると自動入力が開始。</p>
@@ -164,6 +222,11 @@ const allList = computed(() => {
   <Flex> </Flex>
   <Flex>
     <v-container>
+      <v-row>
+        <v-col>
+          {{ totalWorkTime }}
+        </v-col>
+      </v-row>
       <v-row>
         <v-col>
           <template v-if="workInputList?.length">
@@ -224,16 +287,74 @@ const allList = computed(() => {
           </template>
         </v-col>
       </v-row>
+      <v-row>
+        <v-col cols="12">
+          <v-card class="mx-auto" tile>
+            <v-list dense subheader three-line class="overflow-y-auto" style="max-height: 800px">
+              <v-subheader>テキストエリアから取得した勤務情報</v-subheader>
+              <v-list-item
+                v-for="(item, index) in viewTextList"
+                :key="item.date.format('YYYY-MM-DD') + index"
+              >
+                <v-list-item-content>
+                  <v-btn
+                    @click="textList[index].inputFlg = !textList[index].inputFlg"
+                    :color="textList[index].inputFlg ? 'success' : 'primary'"
+                  >
+                    {{ textList[index].inputFlg ? '編集解除' : '編集' }}
+                  </v-btn>
+                  <v-list-item-title>
+                    {{ item.date.format('MM/DD(ddd)') }}
+
+                    <template v-if="item.inputFlg">
+                      <input
+                        type="time"
+                        style="width: min-content"
+                        class="p-0 m-0"
+                        v-model="textList[index].start"
+                      />
+                      -
+                      <input
+                        type="time"
+                        style="width: min-content"
+                        class="p-0 m-0"
+                        v-model="textList[index].end"
+                      />
+
+                      <input
+                        v-model="textList[index].description"
+                        type="text"
+                        style="width: auto; border: solid 1px"
+                      />
+                    </template>
+                    <template v-else>
+                      {{ item.start.format('HH:mm') }}
+                      -
+                      {{ item.end.format('HH:mm') }}
+                      {{ item.description }}
+                    </template>
+                  </v-list-item-title>
+                  <v-list-item-subtitle>勤務:{{ item.workTime() }}時間</v-list-item-subtitle>
+                  <v-list-item-subtitle
+                    >休憩:{{ item.sleepMinute() / 60 }}時間
+                  </v-list-item-subtitle>
+                  <v-divider></v-divider>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-col>
+      </v-row>
     </v-container>
   </Flex>
 </template>
 
 <style>
-@media (min-width: 1024px) {
+/* @media (min-width: 1024px) {
   .about {
     min-height: 100vh;
     display: flex;
     align-items: center;
   }
-}
+} */
 </style>
