@@ -8,5 +8,17 @@
 .flex {
   display: flex;
   gap: 1rem;
+  align-item: baseline;
+}
+.--start {
+  align-items: flex-start;
+}
+
+.--center {
+  align-items: center;
+}
+
+.checkbox-input {
+  flex-direction: row-reverse;
 }
 </style>

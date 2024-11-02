@@ -26,6 +26,9 @@ const drawer = ref<boolean>(true)
           <v-list-item to="/about">
             <v-list-item-title>About</v-list-item-title>
           </v-list-item>
+          <v-list-item to="/about2">
+            <v-list-item-title>時間入力</v-list-item-title>
+          </v-list-item>
           <v-list-item to="/vuetify">
             <v-list-item-title>仮</v-list-item-title>
           </v-list-item>

@@ -11,6 +11,9 @@ import * as directives from 'vuetify/directives'
 import * as dayjs from 'dayjs'
 //import { aliases, mdi } from 'vuetify/iconsets/mdi'
 import '@mdi/font/css/materialdesignicons.css' // Ensure you are using css-loader
+import { ja } from 'vuetify/locale'
+
+
 
 
 // 最大値・最小値の計算するための拡張プラグイン
@@ -26,6 +29,10 @@ dayjs.locale('ja')
 const vuetify = createVuetify({
     components,
     directives,
+    locale: {
+      locale: 'ja',
+      messages:  ja 
+    },
     icons: {
       defaultSet: 'mdi'
     }
