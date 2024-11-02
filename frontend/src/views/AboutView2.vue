@@ -4,9 +4,46 @@ import SessionKey from '../assets/Constants'
 import { ref, computed, readonly, watch, reactive } from 'vue'
 import CopyToolTipButton from '../components/CopyToolTipButton.vue'
 import dayjs from 'dayjs'
-// const area = ref('')
-const area = { value: '' }
+import { calc } from '../service/userAbout'
 const datePick = ref([new Date(), new Date()])
+
+type WorkInfo = {
+  date: dayjs.Dayjs
+  start: dayjs.Dayjs
+  end: dayjs.Dayjs
+  sleep: string
+  description: string
+  size: number
+  workTime: () => number
+  sleepMinute: () => number
+  inputFlg: boolean
+  visible: boolean
+}
+type ViewData = {
+  date: dayjs.Dayjs
+  start: dayjs.Dayjs
+  end: dayjs.Dayjs
+  sleep: string
+  description: string
+  size: number
+  workTime: () => number
+  sleepMinute: () => number
+  inputFlg: boolean,
+  visible: boolean
+}
+
+type OutputData = {
+  date: string
+  start: string
+  end: string
+  sleep: string
+  description: string
+  size: number
+  inputFlg: boolean
+  visible: boolean
+}
+
+const { createDescCommand, createTimeInputCommand, createTimeRateCommand } = calc()
 
 //時間割合のリスト
 const sltWorkRate = ref('')
@@ -16,7 +53,12 @@ const workRateNameList = readonly([
   '【承認済】ICT対応／出社',
   'リモート'
 ])
-
+/**
+ * 数値の配列を受け取り、全ての要素の合計を返す関数です。
+ *
+ * @param {number[]} numbers - 合計する数値の配列。
+ * @returns {number} 配列内の全ての数値の合計。
+ */
 const dateRanges = computed(() => {
   const startDate = datePick.value[0]
   const endDate = datePick.value[datePick.value.length - 1]
@@ -25,6 +67,10 @@ const dateRanges = computed(() => {
     endDate
   }
 })
+/**
+ * 日付を特定の形式で表示する
+ * @returns {string} フォーマットされた日付文字列
+ */
 const datePickFormat = computed(() => {
   const date1 = datePick.value[0]
   const date2 = datePick.value[datePick.value.length - 1]
@@ -35,8 +81,11 @@ const datePickFormat = computed(() => {
 const createDayjs = (day: string, time: string) => {
   return dayjs(day + ' ' + time)
 }
-
-const days = computed(() => {
+/**
+ * 選択された日付範囲内の日々の情報を計算し、
+ * リストとして返すための算出プロパティ
+ */
+const originalDaysList = computed(() => {
   const { startDate, endDate } = dateRanges.value
   const length = dayjs(endDate).diff(dayjs(startDate), 'day')
   const calcList = []
@@ -44,8 +93,10 @@ const days = computed(() => {
     const date = dayjs(startDate).add(i, 'day').format('YYYY/MM/DD')
     const start = createDayjs(date, '09:30').format('HH:mm')
     const end = createDayjs(date, '18:30').format('HH:mm')
-    const sleep = '1:00'
-    const obj = {
+    const sleep = createDayjs(date, '01:00').format('HH:mm')
+    const day = dayjs(date).day()
+    const isHoliday = day === 0 || day === 6
+    const obj: OutputData = {
       date,
       start,
       end,
@@ -53,7 +104,7 @@ const days = computed(() => {
       description: '',
       size: 5,
       inputFlg: false,
-      visible: true
+      visible: !isHoliday
     }
     calcList.push(obj)
   }
@@ -68,24 +119,13 @@ const days = computed(() => {
   return calcList
 })
 
-const textList = reactive(days.value)
+// 元情報から値を変更するためのリアクティブオブジェクト
+const updateDaysList = reactive(originalDaysList.value)
 
-type WorkInfo = {
-  date: dayjs.Dayjs
-  start: dayjs.Dayjs
-  end: dayjs.Dayjs
-  sleep: string
-  description: string
-  size: number
-  workTime: () => number
-  sleepMinute: () => number
-  inputFlg: boolean
-  visible: boolean
-}
-
-const viewTextList = computed(() => {
-  return textList.map((item) => {
-    const obj = {
+// 画面表示用のリスト
+const viewDaysList = computed(() => {
+  return updateDaysList.map((item) => {
+    const obj: ViewData = {
       date: dayjs(item.date),
       start: createDayjs(item.date, item.start),
       end: createDayjs(item.date, item.end),
@@ -100,107 +140,70 @@ const viewTextList = computed(() => {
         const [hour, minute] = this.sleep.split(':')
         return parseInt(hour) * 60 + parseInt(minute)
       },
-      inputFlg: item.inputFlg
+      inputFlg: item.inputFlg,
+      visible: item.visible
     }
     return obj
   })
 })
 
-const totalWorkTime = computed(() => {
-  return viewTextList.value.reduce((acc, item) => {
-    return acc + item.workTime()
-  }, 0)
-})
-
-// 監視対象は days であり count は監視対象外
-watch(days, () => {
-  days.value.forEach((item, index) => {
-    textList[index] = item
+// originalDaysListが変更になった場合、updateDaysListを洗替を行う
+watch(originalDaysList, () => {
+  updateDaysList.length = 0
+  originalDaysList.value.forEach((item, index) => {
+    updateDaysList[index] = item
   })
 })
 
-/**
- * 大枠のasync関数を作成
- * @param codeList
- */
-function convertTemplate(codeList: string[]) {
-  const sleep =
-    'const Sleep=async()=>("none"!=$("#BusyWait").style.display&&(await new Promise(a=>setTimeout(a,10)),await Sleep()),!0);'
-
-  const code = `(async ($) => {${sleep} ${codeList.join('\r\n')}})($);`
-  return code
-}
-/**
- * 備考情報を入力するコマンドを作成
- * @param yyyymmdd
- * @param description
- */
-function createDescCommand(yyyymmdd: string, description: string) {
-  const code = `$("#dailyNoteIcon${yyyymmdd}").click();$("#dialogNoteText2").value=$("#dialogNoteText2").value + "　${description}";$("#dialogNoteOk").click();await Sleep();`
-  return code
-}
+const outputDaysList = computed(() => {
+  return updateDaysList.filter((item) => item.visible)
+})
+// 勤務時間を算出する
+const totalWorkTime = computed(() => {
+  return viewDaysList.value
+    .filter((item) => item.visible)
+    .reduce((acc, item) => {
+      return acc + item.workTime()
+    }, 0)
+})
 
 /**
- * 時間割合を入力するコマンドを作成
- * @param yyyymmdd
+ * 勤務情報を出力する際の共通処理
+ * @param callBack : 出力する情報を整形する関数
  */
-function createTimeRateCommand(yyyymmdd: string) {
-  const index = workRateNameList.findIndex((item) => item === sltWorkRate.value) || 0
-  const code = `$("#dailyWorkCell${yyyymmdd}").click();$("#empInputTime${index}").value = $("#empWorkRealTime").innerHTML.replace("実労働時間：","");$("#empWorkOk").click();await Sleep();`
-  return code
-}
-
-/**
- * 時間割合を入力するコマンドを作成
- * @param yyyymmdd
- * @param startTime
- * @param endTime
- */
-function createTimeInputCommand(yyyymmdd: string, startTime: string, endTime: string) {
-  const code = `$("#ttvTimeSt${yyyymmdd}").click();$("#startTime").value = "${startTime}";$("#endTime").value = "${endTime}";$("#dlgInpTimeOk").click();await Sleep();`
-  return code
-}
-
-// 3.ノート用
-const noteList = computed(() => {
-  const list = textList
+const convertOutputList = (callBack: (item: OutputData) => string) => {
+  const list = outputDaysList.value
   if (list.length == 0) {
     return null
   }
-  const codeList = list.map((item) => {
+  const codeList = list.map(callBack)
+  return codeList
+}
+// 3.ノート用
+const noteList = computed(() => {
+  return convertOutputList((item) => {
     const yyyymmdd = dayjs(item.date).format('YYYY-MM-DD')
     const code = createDescCommand(yyyymmdd, item.description)
     return code
   })
-  return codeList
 })
 
 // 2.時間割合用
 const workList = computed(() => {
-  const list = textList
-  if (list.length == 0) {
-    return null
-  }
-  const codeList = list.map((item) => {
+  return convertOutputList((item) => {
     const yyyymmdd = dayjs(item.date).format('YYYY-MM-DD')
-    const code = createTimeRateCommand(yyyymmdd)
+    const code = createTimeRateCommand(yyyymmdd, sltWorkRate.value)
     return code
   })
-  return codeList
 })
 
 //1.時間入力
 const workInputList = computed(() => {
-  const list = textList
-  if (list.length == 0) {
-    return null
-  }
-  const codeList = list.map((item) => {
+  return convertOutputList((item) => {
     const yyyymmdd = dayjs(item.date).format('YYYY-MM-DD')
     const code = createTimeInputCommand(yyyymmdd, item.start, item.end)
     return code
   })
-  return codeList
 })
 
 const allList = computed(() => {
@@ -240,126 +243,81 @@ const getColor = (date: dayjs.Dayjs) => {
   </v-row>
   <hr />
   {{ datePickFormat }}
-  <Flex style="justify-content: space-around">
-    <v-date-picker multiple="range" v-model="datePick"></v-date-picker>
-    <!-- <pre>{{ area }}</pre> -->
-  </Flex>
+  {{ outputDaysList.length + '件' }}
   <Flex>
     <v-container>
       <v-row>
         <v-col>
-          {{ totalWorkTime }}
-        </v-col>
-      </v-row>
-      <v-row>
-        <v-col>
-          <template v-if="workInputList?.length">
-            <CopyToolTipButton
-              buttonName="１．時間入力をコピーする"
-              :list="workInputList"
-              prepend-icon="mdi-clock-time-nine-outline"
-              color="lime-lighten-4"
-            />
-          </template>
-        </v-col>
-      </v-row>
-      <v-row>
-        <v-col>
-          <Flex>
-            <template v-if="workList?.length">
-              <template v-if="sltWorkRate">
-                <CopyToolTipButton
-                  :buttonName="'２．' + sltWorkRate + 'でコピーする'"
-                  :list="workList"
-                  color="light-blue-lighten-4"
-                  prepend-icon="mdi-chart-pie"
-                />
-              </template>
-              <Flex>
-                <v-select
-                  label="時間割合"
-                  v-model="sltWorkRate"
-                  :items="workRateNameList"
-                  variant="outlined"
-                ></v-select>
-              </Flex>
-            </template>
+          <Flex style="justify-content: space-around">
+            <v-date-picker multiple="range" v-model="datePick"></v-date-picker>
           </Flex>
         </v-col>
-      </v-row>
-      <v-row>
-        <v-col cols="12">
-          <template v-if="noteList?.length">
-            <CopyToolTipButton
-              buttonName="３．備考情報をコピーする"
-              :list="noteList"
-              color="cyan-lighten-4"
-              prepend-icon="mdi-note-text-outline"
-            />
-          </template>
-        </v-col>
-      </v-row>
-      <v-row>
-        <v-col cols="12">
-          <template v-if="allList?.length && sltWorkRate">
-            <CopyToolTipButton
-              color="red-lighten-4"
-              prepend-icon="mdi-select-all"
-              buttonName="４．１ + ２ + ３をまとめた処理をコピー"
-              :list="allList"
-            />
-          </template>
+        <v-col>
+          <v-row>
+            <v-col>
+              <template v-if="workInputList?.length">
+                <CopyToolTipButton buttonName="１．時間入力をコピーする" :list="workInputList"
+                  prepend-icon="mdi-clock-time-nine-outline" color="lime-lighten-4" />
+              </template>
+            </v-col>
+            <v-col>
+              <Flex>
+                <template v-if="workList?.length">
+                  <template v-if="sltWorkRate">
+                    <CopyToolTipButton :buttonName="'２．' + sltWorkRate + 'でコピーする'" :list="workList"
+                      color="light-blue-lighten-4" prepend-icon="mdi-chart-pie" />
+                  </template>
+                  <Flex>
+                    <v-select label="時間割合" v-model="sltWorkRate" :items="workRateNameList"
+                      variant="outlined"></v-select>
+                  </Flex>
+                </template>
+              </Flex>
+            </v-col>
+            <v-col cols="12">
+              <template v-if="noteList?.length">
+                <CopyToolTipButton buttonName="３．備考情報をコピーする" :list="noteList" color="cyan-lighten-4"
+                  prepend-icon="mdi-note-text-outline" />
+              </template>
+            </v-col>
+            <v-col cols="12">
+              <template v-if="allList?.length && sltWorkRate">
+                <CopyToolTipButton color="red-lighten-4" prepend-icon="mdi-select-all"
+                  buttonName="４．１ + ２ + ３をまとめた処理をコピー" :list="allList" />
+              </template>
+            </v-col>
+          </v-row>
         </v-col>
       </v-row>
       <v-row>
         <v-col cols="12">
           <v-card class="mx-auto" tile>
             <v-list dense subheader three-line class="overflow-y-auto" style="max-height: 800px">
-              <v-subheader>テキストエリアから取得した勤務情報</v-subheader>
-              <v-list-item
-                v-for="(item, index) in viewTextList"
-                :key="item.date.format('YYYY-MM-DD') + index"
-              >
+              <v-subheader>日付の範囲から取得した勤務情報</v-subheader>
+              <v-list-item v-for="(item, index) in viewDaysList" :key="item.date.format('YYYY-MM-DD') + index">
                 <v-list-item-content>
                   <v-card :color="getColor(item.date)">
                     <v-list-item-title>
                       <Flex> </Flex>
                       <Flex>
-                        <Flex>
-                          <v-btn
-                            @click="textList[index].inputFlg = !textList[index].inputFlg"
-                            :color="textList[index].inputFlg ? 'success' : 'primary'"
-                          >
-                            {{ textList[index].inputFlg ? '編集解除' : '編集' }}
+                        <div class="flex-container">
+                          <v-btn @click="
+                            updateDaysList[index].inputFlg = !updateDaysList[index].inputFlg
+                            " :color="updateDaysList[index].inputFlg ? 'success' : 'primary'">
+                            {{ updateDaysList[index].inputFlg ? '編集解除' : '編集' }}
                           </v-btn>
 
-                          <v-checkbox
-                            v-model="textList[index].visible"
-                            class="m-0 p-0"
-                          ></v-checkbox>
+                          <input type="checkbox" v-model="updateDaysList[index].visible"></input>
                           {{ item.date.format('MM/DD(ddd)') }}
-                        </Flex>
-                        <Flex>
                           <template v-if="item.inputFlg">
-                            <input
-                              type="time"
-                              style="width: min-content"
-                              class="p-0 m-0"
-                              v-model="textList[index].start"
-                            />
+                            <input type="time" style="width: min-content" class="p-0 m-0"
+                              v-model="updateDaysList[index].start" />
                             -
-                            <input
-                              type="time"
-                              style="width: min-content"
-                              class="p-0 m-0"
-                              v-model="textList[index].end"
-                            />
+                            <input type="time" style="width: min-content" class="p-0 m-0"
+                              v-model="updateDaysList[index].end" />
 
-                            <input
-                              v-model="textList[index].description"
-                              type="text"
-                              style="width: auto; border: solid 1px"
-                            />
+                            <input v-model="updateDaysList[index].description" type="text"
+                              style="width: auto; border: solid 1px" />
                           </template>
                           <template v-else>
                             {{ item.start.format('HH:mm') }}
@@ -367,12 +325,23 @@ const getColor = (date: dayjs.Dayjs) => {
                             {{ item.end.format('HH:mm') }}
                             {{ item.description }}
                           </template>
-                        </Flex>
+                        </div>
                       </Flex>
                     </v-list-item-title>
-                    <v-list-item-subtitle>勤務:{{ item.workTime() }}時間</v-list-item-subtitle>
-                    <v-list-item-subtitle
-                      >休憩:{{ item.sleepMinute() / 60 }}時間
+                    <v-list-item-subtitle>
+                      <div class="flex-container">
+                        <span>
+                          勤務:{{ item.workTime() }}時間
+                        </span>
+                        <template v-if="updateDaysList[index].inputFlg">
+                          <span>休憩:<input type="time" v-model="updateDaysList[index].sleep" /></span>
+                        </template>
+                        <template v-else>
+                          <span>休憩:{{ item.sleepMinute() / 60 }}時間</span>
+                        </template>
+                      </div>
+                    </v-list-item-subtitle>
+                    <v-list-item-subtitle>
                     </v-list-item-subtitle>
                     <v-divider></v-divider>
                   </v-card>
@@ -394,4 +363,12 @@ const getColor = (date: dayjs.Dayjs) => {
     align-items: center;
   }
 } */
+
+.flex-container {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  column-gap: 20px;
+}
 </style>
