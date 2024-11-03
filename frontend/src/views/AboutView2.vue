@@ -6,6 +6,7 @@ import CopyToolTipButton from '../components/CopyToolTipButton.vue'
 import dayjs from 'dayjs'
 import { calc } from '../service/userAbout'
 const datePick = ref([new Date(), new Date()])
+const descriptionText = ref('')
 
 type WorkInfo = {
   date: dayjs.Dayjs
@@ -101,7 +102,7 @@ const originalDaysList = computed(() => {
       start,
       end,
       sleep,
-      description: '',
+      description: descriptionText.value,
       size: 5,
       inputFlg: false,
       visible: !isHoliday
@@ -233,21 +234,30 @@ const getColor = (date: dayjs.Dayjs) => {
 <template>
   <v-row>
     <v-col cols="12">
-      <p>１．タブ区切りのテキストエリアに貼り付ける。</p>
-      <p>　日付 開始時間 終了時間 休憩時間 備考</p>
-      <pre>　例）`2024/06/17	9:45	19:45	1:00	製造、打ち合わせ`</pre>
-      <p>２．各種クリップボードボタンを押下すると関数がコピーされる。</p>
-      <p>３．topを「vfFrameId～(AtkWorkTimeView)」変える。</p>
-      <p>４．関数をSalesForceの管理コンソールに貼り付けると自動入力が開始。</p>
+      <p>１．日付で範囲選択する。</p>
+      <p>２．明細が下部に表示されるので適時変更する</p>
+      <p>３．各種クリップボードボタンを押下すると関数がコピーされる。</p>
+      <p>４．topを「vfFrameId～(AtkWorkTimeView)」変える。</p>
+      <p>５．関数をSalesForceの管理コンソールに貼り付けると自動入力が開始。</p>
     </v-col>
   </v-row>
   <hr />
-  {{ datePickFormat }}
-  {{ outputDaysList.length + '件' }}
+  <Flex>
+    <v-card title="選択範囲期間" :text="datePickFormat">
+    </v-card>
+    <v-card title="営業日" :text="outputDaysList.length + '日'">
+    </v-card>
+    <v-card title="勤務時間" :text="totalWorkTime + '時間'">
+    </v-card>
+  </Flex>
   <Flex>
     <v-container>
       <v-row>
         <v-col>
+          <Flex>
+            <v-text-field hint="変更すると一括で明細側の備考に反映されます。" label="備考(一括入力用)" variant="outlined"
+              v-model="descriptionText"></v-text-field>
+          </Flex>
           <Flex style="justify-content: space-around">
             <v-date-picker multiple="range" v-model="datePick"></v-date-picker>
           </Flex>
@@ -267,10 +277,8 @@ const getColor = (date: dayjs.Dayjs) => {
                     <CopyToolTipButton :buttonName="'２．' + sltWorkRate + 'でコピーする'" :list="workList"
                       color="light-blue-lighten-4" prepend-icon="mdi-chart-pie" />
                   </template>
-                  <Flex>
-                    <v-select label="時間割合" v-model="sltWorkRate" :items="workRateNameList"
-                      variant="outlined"></v-select>
-                  </Flex>
+                  <v-select label="時間割合" v-model="sltWorkRate" :items="workRateNameList" variant="outlined"
+                    width="15vw"></v-select>
                 </template>
               </Flex>
             </v-col>
@@ -307,7 +315,16 @@ const getColor = (date: dayjs.Dayjs) => {
                             {{ updateDaysList[index].inputFlg ? '編集解除' : '編集' }}
                           </v-btn>
 
-                          <input type="checkbox" v-model="updateDaysList[index].visible"></input>
+                          <v-tooltip location="top">
+                            <template v-slot:activator="{ props }">
+                              <div v-bind="props">
+                                <input type="checkbox" v-model="updateDaysList[index].visible" />
+                              </div>
+                            </template>
+                            <span>出勤日の場合ONにする</span>
+                          </v-tooltip>
+
+
                           {{ item.date.format('MM/DD(ddd)') }}
                           <template v-if="item.inputFlg">
                             <input type="time" style="width: min-content" class="p-0 m-0"
