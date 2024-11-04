@@ -16,8 +16,9 @@
     "push": "clasp push",
     "open": "clasp open --webapp",
     "edit-clasp": "clasp open",
-    "deploy": "clasp deploy --deploymentId AKfycbxprtZviEJ05uGw9URxGAtxb7HXYjtB-55u5Cm2-TDVsRODMZrURcCsrkL5Azgs5MD5",
-    "all-cmd": "npm run push && npm run deploy"
+    "deploy": "clasp deploy",
+    "all-cmd": "npm run push && npm run deploy",
+    "deployments": "clasp deployments"
   },
   "keywords": [],
   "author": "",
