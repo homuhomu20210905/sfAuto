@@ -1,152 +1,28 @@
 <script setup lang="ts">
 import Flex from '../components/Design/Flex.vue'
-import SessionKey from '../assets/Constants'
+
 import { ref, computed, readonly, watch, reactive } from 'vue'
 import CopyToolTipButton from '../components/CopyToolTipButton.vue'
 import dayjs from 'dayjs'
-import { calc } from '../service/userAbout'
-const datePick = ref([new Date(), new Date()])
-const descriptionText = ref('')
+import { calc, computeds } from '../service/userAbout'
 
-type WorkInfo = {
-  date: dayjs.Dayjs
-  start: dayjs.Dayjs
-  end: dayjs.Dayjs
-  sleep: string
-  description: string
-  size: number
-  workTime: () => number
-  sleepMinute: () => number
-  inputFlg: boolean
-  visible: boolean
-}
-type ViewData = {
-  date: dayjs.Dayjs
-  start: dayjs.Dayjs
-  end: dayjs.Dayjs
-  sleep: string
-  description: string
-  size: number
-  workTime: () => number
-  sleepMinute: () => number
-  inputFlg: boolean,
-  visible: boolean
-}
 
-type OutputData = {
-  date: string
-  start: string
-  end: string
-  sleep: string
-  description: string
-  size: number
-  inputFlg: boolean
-  visible: boolean
-}
+const { workRateNameList } = calc()
+const { datePick,
+  descriptionText,
+  datePickFormat,
+  originalDaysList,
+  updateDaysList,
+  viewDaysList,
+  outputDaysList,
+  totalWorkTime,
+  workInputList,
+  workList,
+  allList,
+  noteList, sltWorkRate } = computeds();
 
-const { createDescCommand, createTimeInputCommand, createTimeRateCommand } = calc()
 
-//時間割合のリスト
-const sltWorkRate = ref('')
-const workRateNameList = readonly([
-  '現場対応／リモート	',
-  '現場対応／出社',
-  '【承認済】ICT対応／出社',
-  'リモート'
-])
-/**
- * 数値の配列を受け取り、全ての要素の合計を返す関数です。
- *
- * @param {number[]} numbers - 合計する数値の配列。
- * @returns {number} 配列内の全ての数値の合計。
- */
-const dateRanges = computed(() => {
-  const startDate = datePick.value[0]
-  const endDate = datePick.value[datePick.value.length - 1]
-  return {
-    startDate,
-    endDate
-  }
-})
-/**
- * 日付を特定の形式で表示する
- * @returns {string} フォーマットされた日付文字列
- */
-const datePickFormat = computed(() => {
-  const date1 = datePick.value[0]
-  const date2 = datePick.value[datePick.value.length - 1]
-  return dayjs(date1).format('YYYY/MM/DD') + ' - ' + dayjs(date2).format('YYYY/MM/DD')
-})
 
-// 算出プロパティの参照
-const createDayjs = (day: string, time: string) => {
-  return dayjs(day + ' ' + time)
-}
-/**
- * 選択された日付範囲内の日々の情報を計算し、
- * リストとして返すための算出プロパティ
- */
-const originalDaysList = computed(() => {
-  const { startDate, endDate } = dateRanges.value
-  const length = dayjs(endDate).diff(dayjs(startDate), 'day')
-  const calcList = []
-  for (let i = 0; i <= length; i++) {
-    const date = dayjs(startDate).add(i, 'day').format('YYYY/MM/DD')
-    const start = createDayjs(date, '09:30').format('HH:mm')
-    const end = createDayjs(date, '18:30').format('HH:mm')
-    const sleep = createDayjs(date, '01:00').format('HH:mm')
-    const day = dayjs(date).day()
-    const isHoliday = day === 0 || day === 6
-    const obj: OutputData = {
-      date,
-      start,
-      end,
-      sleep,
-      description: descriptionText.value,
-      size: 5,
-      inputFlg: false,
-      visible: !isHoliday
-    }
-    calcList.push(obj)
-  }
-
-  //キー情報の保存
-  if (calcList.length !== 0) {
-    sessionStorage.setItem(SessionKey.DAYS, JSON.stringify(calcList))
-  } else {
-    sessionStorage.removeItem(SessionKey.DAYS)
-  }
-
-  return calcList
-})
-
-// 元情報から値を変更するためのリアクティブオブジェクト
-const updateDaysList = reactive(originalDaysList.value)
-
-// 画面表示用のリスト
-const viewDaysList = computed(() => {
-  return updateDaysList.map((item) => {
-    const obj: ViewData = {
-      date: dayjs(item.date),
-      start: createDayjs(item.date, item.start),
-      end: createDayjs(item.date, item.end),
-      sleep: item.sleep,
-      description: item.description,
-      size: item.size,
-      workTime: function () {
-        const calcMinute = this.sleepMinute()
-        return this.end.diff(this.start.add(calcMinute, 'm'), 'minutes') / 60
-      },
-      sleepMinute: function () {
-        const [hour, minute] = this.sleep.split(':')
-        return parseInt(hour) * 60 + parseInt(minute)
-      },
-      inputFlg: item.inputFlg,
-      visible: item.visible
-    }
-    return obj
-  })
-})
 
 // originalDaysListが変更になった場合、updateDaysListを洗替を行う
 watch(originalDaysList, () => {
@@ -156,71 +32,10 @@ watch(originalDaysList, () => {
   })
 })
 
-const outputDaysList = computed(() => {
-  return updateDaysList.filter((item) => item.visible)
-})
-// 勤務時間を算出する
-const totalWorkTime = computed(() => {
-  return viewDaysList.value
-    .filter((item) => item.visible)
-    .reduce((acc, item) => {
-      return acc + item.workTime()
-    }, 0)
-})
-
 /**
- * 勤務情報を出力する際の共通処理
- * @param callBack : 出力する情報を整形する関数
+ * 日付の背景色を取得する
+ * @param date 日付
  */
-const convertOutputList = (callBack: (item: OutputData) => string) => {
-  const list = outputDaysList.value
-  if (list.length == 0) {
-    return null
-  }
-  const codeList = list.map(callBack)
-  return codeList
-}
-// 3.ノート用
-const noteList = computed(() => {
-  return convertOutputList((item) => {
-    const yyyymmdd = dayjs(item.date).format('YYYY-MM-DD')
-    const code = createDescCommand(yyyymmdd, item.description)
-    return code
-  })
-})
-
-// 2.時間割合用
-const workList = computed(() => {
-  return convertOutputList((item) => {
-    const yyyymmdd = dayjs(item.date).format('YYYY-MM-DD')
-    const code = createTimeRateCommand(yyyymmdd, sltWorkRate.value)
-    return code
-  })
-})
-
-//1.時間入力
-const workInputList = computed(() => {
-  return convertOutputList((item) => {
-    const yyyymmdd = dayjs(item.date).format('YYYY-MM-DD')
-    const code = createTimeInputCommand(yyyymmdd, item.start, item.end)
-    return code
-  })
-})
-
-const allList = computed(() => {
-  const list: string[] = []
-  if (workInputList.value) {
-    list.push(...workInputList.value)
-  }
-  if (workList.value) {
-    list.push(...workList.value)
-  }
-  if (noteList.value) {
-    list.push(...noteList.value)
-  }
-  return list
-})
-
 const getColor = (date: dayjs.Dayjs) => {
   if (date.day() === 6) {
     return 'blue-lighten-4'
@@ -230,6 +45,8 @@ const getColor = (date: dayjs.Dayjs) => {
   }
   return ''
 }
+
+
 </script>
 <template>
   <v-row>
@@ -254,12 +71,12 @@ const getColor = (date: dayjs.Dayjs) => {
     <v-container>
       <v-row>
         <v-col>
+          <Flex style="justify-content: space-around">
+            <v-date-picker title="勤怠入力の範囲指定(From～To)" multiple="range" v-model="datePick"></v-date-picker>
+          </Flex>
           <Flex>
             <v-text-field hint="変更すると一括で明細側の備考に反映されます。" label="備考(一括入力用)" variant="outlined"
               v-model="descriptionText"></v-text-field>
-          </Flex>
-          <Flex style="justify-content: space-around">
-            <v-date-picker multiple="range" v-model="datePick"></v-date-picker>
           </Flex>
         </v-col>
         <v-col>
@@ -357,8 +174,6 @@ const getColor = (date: dayjs.Dayjs) => {
                           <span>休憩:{{ item.sleepMinute() / 60 }}時間</span>
                         </template>
                       </div>
-                    </v-list-item-subtitle>
-                    <v-list-item-subtitle>
                     </v-list-item-subtitle>
                     <v-divider></v-divider>
                   </v-card>
