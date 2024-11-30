@@ -58,16 +58,12 @@ export function calc() {
 }
 
 export const computeds = () => {
-  const {
-    createDescCommand,
-    createTimeInputCommand,
-    createTimeRateCommand,
-    createDayjs,
-    workRateNameList
-  } = calc()
+  const { createDescCommand, createTimeInputCommand, createTimeRateCommand, createDayjs } = calc()
   const yyyymmdd = dayjs(new Date()).format('YYYY-MM-DD')
   const datePick = ref([yyyymmdd, yyyymmdd])
   const descriptionText = ref('')
+  const startTime = ref('09:30')
+  const endTime = ref('18:30')
   //時間割合のリスト
   const sltWorkRate = ref('')
 
@@ -109,10 +105,13 @@ export const computeds = () => {
     const { startDate, endDate } = dateRanges.value
     const length = dayjs(endDate).diff(dayjs(startDate), 'day')
     const calcList = []
-    for (let i = 0; i <= length; i++) {
+    const sTime = createDayjs(startDate, startTime.value).format('HH:mm')
+    const eTime = createDayjs(startDate, endTime.value).format('HH:mm')
+    console.log(sTime)
+    for (let i = 0; i < length; i++) {
       const date = dayjs(startDate).add(i, 'day').format('YYYY/MM/DD')
-      const start = createDayjs(date, '09:30').format('HH:mm')
-      const end = createDayjs(date, '18:30').format('HH:mm')
+      const start = createDayjs(date, sTime).format('HH:mm')
+      const end = createDayjs(date, eTime).format('HH:mm')
       const sleep = createDayjs(date, '01:00').format('HH:mm')
       const day = dayjs(date).day()
       const isHoliday = day === 0 || day === 6
@@ -245,6 +244,8 @@ export const computeds = () => {
     workList,
     noteList,
     allList,
-    sltWorkRate
+    sltWorkRate,
+    startTime,
+    endTime
   }
 }

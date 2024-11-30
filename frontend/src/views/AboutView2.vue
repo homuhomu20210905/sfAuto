@@ -19,7 +19,7 @@ const { datePick,
   workInputList,
   workList,
   allList,
-  noteList, sltWorkRate } = computeds();
+  noteList, sltWorkRate, startTime, endTime } = computeds();
 
 
 
@@ -29,10 +29,12 @@ watch(originalDaysList, () => {
   const list = [...updateDaysList];
   updateDaysList.length = 0
   originalDaysList.value.forEach((item, index) => {
-    updateDaysList[index] = {
+    const day = dayjs(item.date).day()
+    const isHoliday = day === 0 || day === 6
+    updateDaysList.push({
       date: item.date,
-      start: list[index]?.start || item.start,
-      end: list[index]?.end || item.end,
+      start: item.start,
+      end: item.end,
       sleep: list[index]?.sleep || item.sleep,
       // start: item.start,
       // end: item.end,
@@ -40,8 +42,8 @@ watch(originalDaysList, () => {
       description: item.description,
       size: item.size,
       inputFlg: item.inputFlg,
-      visible: list[index]?.visible ?? item.visible
-    }
+      visible: !isHoliday
+    });
   })
 })
 
@@ -95,18 +97,45 @@ const getColor = (date: dayjs.Dayjs) => {
     </v-row>
     <v-row>
       <v-col>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col>
-        <Flex>
-          <v-text-field hint="変更すると一括で明細側の備考に反映されます。" label="備考(一括入力用)" variant="outlined"
-            v-model="descriptionText"></v-text-field>
-        </Flex>
-      </v-col>
-      <v-col>
-        <v-select label="時間割合" v-model="sltWorkRate" :items="workRateNameList" variant="outlined"
-          width="15vw"></v-select>
+        <v-dialog max-width="500">
+          <template v-slot:activator="{ props: activatorProps }">
+            <v-btn v-bind="activatorProps" color="surface-variant" text="一括反映" variant="flat"></v-btn>
+          </template>
+
+          <template v-slot:default="{ isActive }">
+            <v-card title="Dialog">
+              <v-card-text>
+                <v-row>
+                  <v-col cols="12">
+                    <Flex>
+                      <v-text-field hint="変更すると一括で明細側の備考に反映されます。" label="備考(一括入力用)" variant="outlined"
+                        v-model="descriptionText"></v-text-field>
+                    </Flex>
+                  </v-col>
+                  <v-col>
+                    <v-select label="時間割合" v-model="sltWorkRate" :items="workRateNameList" variant="outlined"
+                      width="15vw"></v-select>
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col>
+                    始業時間：<input type="time" v-model="startTime" />
+                  </v-col>
+                  <v-col>
+                    終了時間：<input type="time" v-model="endTime" />
+                  </v-col>
+
+                </v-row>
+              </v-card-text>
+
+              <v-card-actions>
+                <v-spacer></v-spacer>
+
+                <v-btn text="Close Dialog" @click="isActive.value = false"></v-btn>
+              </v-card-actions>
+            </v-card>
+          </template>
+        </v-dialog>
       </v-col>
     </v-row>
 
