@@ -23,8 +23,12 @@ export function calc() {
    * @param description
    */
   function createDescCommand(yyyymmdd: string, description: string) {
-    const code = `$("#dailyNoteIcon${yyyymmdd}").click();$("#dialogNoteText2").value=$("#dialogNoteText2").value + "　${description}";$("#dialogNoteOk").click();await Sleep();`
-    return code
+    const list = []
+    list.push(`$("#dailyNoteIcon${yyyymmdd}").click();`)
+    list.push(`$("#dialogNoteText2").value=$("#dialogNoteText2").value + "　${description}";`)
+    list.push(`$("#dialogNoteOk").click();`)
+    list.push(`await Sleep();`)
+    return list.join('\n')
   }
 
   /**
@@ -33,8 +37,14 @@ export function calc() {
    */
   function createTimeRateCommand(yyyymmdd: string, sltWorkRate: string) {
     const index = workRateNameList.findIndex((item) => item === sltWorkRate) || 0
-    const code = `$("#dailyWorkCell${yyyymmdd}").click();$("#empInputTime${index}").value = $("#empWorkRealTime").innerHTML.replace("実労働時間：","");$("#empWorkOk").click();await Sleep();`
-    return code
+    const list = []
+    list.push(`$("#dailyWorkCell${yyyymmdd}").click();`)
+    list.push(
+      `$("#empInputTime${index}").value = $("#empWorkRealTime").innerHTML.replace("実労働時間：","");`
+    )
+    list.push(`$("#empWorkOk").click();`)
+    list.push(`await Sleep();`)
+    return list.join('\n')
   }
 
   /**
@@ -44,8 +54,13 @@ export function calc() {
    * @param endTime
    */
   function createTimeInputCommand(yyyymmdd: string, startTime: string, endTime: string) {
-    const code = `$("#ttvTimeSt${yyyymmdd}").click();$("#startTime").value = "${startTime}";$("#endTime").value = "${endTime}";$("#dlgInpTimeOk").click();await Sleep();`
-    return code
+    const list = []
+    list.push(`$("#ttvTimeSt${yyyymmdd}").click();`)
+    list.push(`$("#startTime").value = "${startTime}";`)
+    list.push(`$("#endTime").value = "${endTime}";`)
+    list.push(`$("#dlgInpTimeOk").click();`)
+    list.push(`await Sleep();`)
+    return list.join('\n')
   }
 
   return {
@@ -59,8 +74,9 @@ export function calc() {
 
 export const computeds = () => {
   const { createDescCommand, createTimeInputCommand, createTimeRateCommand, createDayjs } = calc()
-  const yyyymmdd = dayjs(new Date()).format('YYYY-MM-DD')
-  const datePick = ref([yyyymmdd, yyyymmdd])
+  const start = dayjs().format('YYYY-MM-DD')
+  const end = dayjs().endOf('month').format('YYYY-MM-DD')
+  const datePick = ref([start, end])
   const descriptionText = ref('')
   const startTime = ref('09:30')
   const endTime = ref('18:30')

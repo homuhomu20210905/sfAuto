@@ -5,7 +5,9 @@ import { ref, computed, readonly, watch, reactive } from 'vue'
 import CopyToolTipButton from '../components/CopyToolTipButton.vue'
 import dayjs from 'dayjs'
 import { calc, computeds } from '../service/userAbout'
+import axios from 'axios'
 
+const holiday_session_storage = 'holiday'
 
 const { workRateNameList } = calc()
 const { datePick,
@@ -22,15 +24,25 @@ const { datePick,
   noteList, sltWorkRate, startTime, endTime } = computeds();
 
 
+(() => {
+  axios.get('https://holidays-jp.github.io/api/v1/date.json')
+    .then(response => {
+      console.log(response.data);
+      sessionStorage.setItem(holiday_session_storage, JSON.stringify(response.data));
+    })
+})();
 
 
 // originalDaysListが変更になった場合、updateDaysListを洗替を行う
 watch(originalDaysList, () => {
   const list = [...updateDaysList];
   updateDaysList.length = 0
+  const holiday = getHoliday();
   originalDaysList.value.forEach((item, index) => {
-    const day = dayjs(item.date).day()
-    const isHoliday = day === 0 || day === 6
+    const date = dayjs(item.date);
+    const day = date.day()
+    const description = holiday[date.format('YYYY-MM-DD')] || '';
+    const isHoliday = day === 0 || day === 6 || description;
     updateDaysList.push({
       date: item.date,
       start: item.start,
@@ -39,7 +51,7 @@ watch(originalDaysList, () => {
       // start: item.start,
       // end: item.end,
       // sleep: item.sleep,
-      description: item.description,
+      description: item.description + description,
       size: item.size,
       inputFlg: item.inputFlg,
       visible: !isHoliday
@@ -47,16 +59,29 @@ watch(originalDaysList, () => {
   })
 })
 
+const getHoliday = () => {
+  const holiday = sessionStorage.getItem(holiday_session_storage);
+  if (holiday) {
+    return JSON.parse(holiday);
+  }
+  return null;
+}
+
 /**
  * 日付の背景色を取得する
  * @param date 日付
  */
 const getColor = (date: dayjs.Dayjs) => {
+
   if (date.day() === 6) {
     return 'blue-lighten-4'
   }
   if (date.day() === 0) {
     return 'red-lighten-4'
+  }
+  const holiday = getHoliday();
+  if (holiday[date.format('YYYY-MM-DD')]) {
+    return 'green-lighten-4'
   }
   return ''
 }

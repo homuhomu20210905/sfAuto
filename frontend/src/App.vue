@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { onMounted, ref } from 'vue'
+import axios from 'axios';
 
 onMounted(() => {
   console.log('mounted')
+
   useRouter().push({ name: 'home' })
 })
 

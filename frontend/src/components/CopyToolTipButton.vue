@@ -18,7 +18,7 @@ const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, tim
  */
 function convertTemplate() {
   const sleep =
-    'const Sleep=async()=>("none"!=$("#BusyWait").style.display&&(await new Promise(a=>setTimeout(a,10)),await Sleep()),!0);'
+    `const Sleep=async()=>("none"!=$("#BusyWait").style.display&&(await new Promise(a=>setTimeout(a,10)),await Sleep()),!0);`
 
   const code = `(async ($) => {${sleep} ${props.list.join('\r\n')}})($);`
   return code
@@ -48,12 +48,7 @@ async function clipboardRefCopy(list: String[]) {
 <template>
   <v-tooltip v-model="showCopied" location="top" :open-on-hover="false">
     <template #activator="{ props, isActive }">
-      <v-btn
-        @click="clipboardRefCopy(list)"
-        v-bind="props"
-        :color="color"
-        :prepend-icon="prependIcon"
-      >
+      <v-btn @click="clipboardRefCopy(list)" v-bind="props" :color="color" :prepend-icon="prependIcon">
         {{ buttonName }}
       </v-btn>
     </template>
