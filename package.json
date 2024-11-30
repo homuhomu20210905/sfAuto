@@ -17,7 +17,7 @@
     "open": "clasp open --webapp",
     "edit-clasp": "clasp open",
     "deploy": "clasp deploy",
-    "all-cmd": "npm run push && npm run deploy",
+    "all-cmd": "npm run build && npm run push && npm run deploy",
     "deployments": "clasp deployments"
   },
   "keywords": [],

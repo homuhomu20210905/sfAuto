@@ -8,8 +8,9 @@
 .flex {
   display: flex;
   gap: 1rem;
-  align-item: baseline;
+  align-items: baseline;
 }
+
 .--start {
   align-items: flex-start;
 }

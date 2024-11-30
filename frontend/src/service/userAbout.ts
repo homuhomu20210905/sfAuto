@@ -108,7 +108,7 @@ export const computeds = () => {
     const sTime = createDayjs(startDate, startTime.value).format('HH:mm')
     const eTime = createDayjs(startDate, endTime.value).format('HH:mm')
     console.log(sTime)
-    for (let i = 0; i < length; i++) {
+    for (let i = 0; i <= length; i++) {
       const date = dayjs(startDate).add(i, 'day').format('YYYY/MM/DD')
       const start = createDayjs(date, sTime).format('HH:mm')
       const end = createDayjs(date, eTime).format('HH:mm')
