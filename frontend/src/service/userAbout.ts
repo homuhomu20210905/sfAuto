@@ -65,7 +65,8 @@ export const computeds = () => {
     createDayjs,
     workRateNameList
   } = calc()
-  const datePick = ref([new Date(), new Date()])
+  const yyyymmdd = dayjs(new Date()).format('YYYY-MM-DD')
+  const datePick = ref([yyyymmdd, yyyymmdd])
   const descriptionText = ref('')
   //時間割合のリスト
   const sltWorkRate = ref('')
@@ -77,11 +78,17 @@ export const computeds = () => {
    * @returns {number} 配列内の全ての数値の合計。
    */
   const dateRanges = computed(() => {
-    const startDate = datePick.value[0]
-    const endDate = datePick.value[datePick.value.length - 1]
+    const date1 = datePick.value[0]
+    const date2 = datePick.value[datePick.value.length - 1]
+    if (dayjs(date1).isAfter(dayjs(date2))) {
+      return {
+        startDate: date2,
+        endDate: date1
+      }
+    }
     return {
-      startDate,
-      endDate
+      startDate: date1,
+      endDate: date2
     }
   })
   /**
@@ -89,8 +96,8 @@ export const computeds = () => {
    * @returns {string} フォーマットされた日付文字列
    */
   const datePickFormat = computed(() => {
-    const date1 = datePick.value[0]
-    const date2 = datePick.value[datePick.value.length - 1]
+    const date1 = dateRanges.value.startDate
+    const date2 = dateRanges.value.endDate
     return dayjs(date1).format('YYYY/MM/DD') + ' - ' + dayjs(date2).format('YYYY/MM/DD')
   })
 
