@@ -3,6 +3,14 @@ import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { onMounted, ref } from 'vue'
 import axios from 'axios';
 
+(() => {
+  const holiday_session_storage = 'holiday'
+  axios.get('https://holidays-jp.github.io/api/v1/date.json')
+    .then(response => {
+      console.log(response.data);
+      sessionStorage.setItem(holiday_session_storage, JSON.stringify(response.data));
+    })
+})();
 onMounted(() => {
   console.log('mounted')
 
@@ -23,10 +31,10 @@ const drawer = ref<boolean>(true)
       <v-list nav dense>
         <v-list-item-group active-class="deep-purple--text text--accent-4">
           <v-list-item to="/">
-            <v-list-item-title>Home</v-list-item-title>
+            <v-list-item-title>Home(説明)</v-list-item-title>
           </v-list-item>
           <v-list-item to="/about">
-            <v-list-item-title>About</v-list-item-title>
+            <v-list-item-title>TSV一括入力</v-list-item-title>
           </v-list-item>
           <v-list-item to="/about2">
             <v-list-item-title>時間入力</v-list-item-title>

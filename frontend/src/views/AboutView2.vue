@@ -2,12 +2,14 @@
 import Flex from '../components/Design/Flex.vue'
 
 import { ref, computed, readonly, watch, reactive } from 'vue'
-import CopyToolTipButton from '../components/CopyToolTipButton.vue'
 import dayjs from 'dayjs'
 import { calc, computeds } from '../service/userAbout'
 import axios from 'axios'
 
-const holiday_session_storage = 'holiday'
+import TimeWorkList from '@/components/TimeWorkList.vue'
+import CopyButtons from '../components/CopyButtons.vue'
+
+
 
 const { workRateNameList } = calc()
 const { datePick,
@@ -21,16 +23,8 @@ const { datePick,
   workInputList,
   workList,
   allList,
-  noteList, sltWorkRate, startTime, endTime } = computeds();
-
-
-(() => {
-  axios.get('https://holidays-jp.github.io/api/v1/date.json')
-    .then(response => {
-      console.log(response.data);
-      sessionStorage.setItem(holiday_session_storage, JSON.stringify(response.data));
-    })
-})();
+  getHoliday,
+  noteList, sltWorkRate, startTime, endTime, timeList } = computeds();
 
 
 // originalDaysListが変更になった場合、updateDaysListを洗替を行う
@@ -59,32 +53,7 @@ watch(originalDaysList, () => {
   })
 })
 
-const getHoliday = () => {
-  const holiday = sessionStorage.getItem(holiday_session_storage);
-  if (holiday) {
-    return JSON.parse(holiday);
-  }
-  return null;
-}
 
-/**
- * 日付の背景色を取得する
- * @param date 日付
- */
-const getColor = (date: dayjs.Dayjs) => {
-
-  if (date.day() === 6) {
-    return 'blue-lighten-4'
-  }
-  if (date.day() === 0) {
-    return 'red-lighten-4'
-  }
-  const holiday = getHoliday();
-  if (holiday[date.format('YYYY-MM-DD')]) {
-    return 'green-lighten-4'
-  }
-  return ''
-}
 
 
 </script>
@@ -124,7 +93,15 @@ const getColor = (date: dayjs.Dayjs) => {
       <v-col>
         <v-dialog max-width="500">
           <template v-slot:activator="{ props: activatorProps }">
-            <v-btn v-bind="activatorProps" color="surface-variant" text="一括反映" variant="flat"></v-btn>
+            <v-row>
+              <v-col>
+                <v-select label="時間割合" v-model="sltWorkRate" :items="workRateNameList" variant="outlined"
+                  width="15vw"></v-select>
+              </v-col>
+              <v-col>
+                <v-btn v-bind="activatorProps" color="surface-variant" text="一括反映" variant="flat"></v-btn>
+              </v-col>
+            </v-row>
           </template>
 
           <template v-slot:default="{ isActive }">
@@ -136,10 +113,6 @@ const getColor = (date: dayjs.Dayjs) => {
                       <v-text-field hint="変更すると一括で明細側の備考に反映されます。" label="備考(一括入力用)" variant="outlined"
                         v-model="descriptionText"></v-text-field>
                     </Flex>
-                  </v-col>
-                  <v-col>
-                    <v-select label="時間割合" v-model="sltWorkRate" :items="workRateNameList" variant="outlined"
-                      width="15vw"></v-select>
                   </v-col>
                 </v-row>
                 <v-row>
@@ -164,101 +137,11 @@ const getColor = (date: dayjs.Dayjs) => {
       </v-col>
     </v-row>
 
-    <v-row>
-      <v-col>
-        <template v-if="workInputList?.length">
-          <CopyToolTipButton buttonName="１．時間入力をコピーする" :list="workInputList" prepend-icon="mdi-clock-time-nine-outline"
-            color="lime-lighten-4" />
-        </template>
-      </v-col>
-      <v-col cols="3">
-        <template v-if="workList?.length">
-          <template v-if="sltWorkRate">
-            <CopyToolTipButton :buttonName="'２．' + sltWorkRate + 'でコピーする'" :list="workList" color="light-blue-lighten-4"
-              prepend-icon="mdi-chart-pie" />
-          </template>
-        </template>
-      </v-col>
-      <v-col cols="3">
-        <template v-if="noteList?.length">
-          <CopyToolTipButton buttonName="３．備考情報をコピーする" :list="noteList" color="cyan-lighten-4"
-            prepend-icon="mdi-note-text-outline" />
-        </template>
-      </v-col>
-      <v-col cols="3">
-        <template v-if="allList?.length && sltWorkRate">
-          <CopyToolTipButton color="red-lighten-4" prepend-icon="mdi-select-all" buttonName="４．１ + ２ + ３をまとめた処理をコピー"
-            :list="allList" />
-        </template>
-      </v-col>
-    </v-row>
+    <CopyButtons :workInputList="workInputList" :workList="workList" :allList="allList" :noteList="noteList"
+      :sltWorkRate="sltWorkRate" :timeList="timeList" />
     <v-row>
       <v-col cols="12">
-        <v-card class="mx-auto" tile>
-          <v-list dense subheader three-line class="overflow-y-auto" style="max-height: 800px">
-            <v-subheader>日付の範囲から取得した勤務情報</v-subheader>
-            <v-list-item v-for="(item, index) in viewDaysList" :key="item.date.format('YYYY-MM-DD') + index">
-              <v-list-item-content>
-                <v-card :color="getColor(item.date)">
-                  <v-list-item-title>
-                    <Flex> </Flex>
-                    <Flex>
-                      <div class="flex-container">
-                        <v-btn @click="
-                          updateDaysList[index].inputFlg = !updateDaysList[index].inputFlg
-                          " :color="updateDaysList[index].inputFlg ? 'success' : 'primary'">
-                          {{ updateDaysList[index].inputFlg ? '編集解除' : '編集' }}
-                        </v-btn>
-
-                        <v-tooltip location="top">
-                          <template v-slot:activator="{ props }">
-                            <div v-bind="props">
-                              <input type="checkbox" v-model="updateDaysList[index].visible" />
-                            </div>
-                          </template>
-                          <span>出勤日の場合ONにする</span>
-                        </v-tooltip>
-
-
-                        {{ item.date.format('MM/DD(ddd)') }}
-                        <template v-if="item.inputFlg">
-                          <input type="time" style="width: min-content" class="p-0 m-0"
-                            v-model="updateDaysList[index].start" />
-                          -
-                          <input type="time" style="width: min-content" class="p-0 m-0"
-                            v-model="updateDaysList[index].end" />
-
-                          <input v-model="updateDaysList[index].description" type="text"
-                            style="width: auto; border: solid 1px" />
-                        </template>
-                        <template v-else>
-                          {{ item.start.format('HH:mm') }}
-                          -
-                          {{ item.end.format('HH:mm') }}
-                          {{ item.description }}
-                        </template>
-                      </div>
-                    </Flex>
-                  </v-list-item-title>
-                  <v-list-item-subtitle>
-                    <div class="flex-container">
-                      <span>
-                        勤務:{{ item.workTime() }}時間
-                      </span>
-                      <template v-if="updateDaysList[index].inputFlg">
-                        <span>休憩:<input type="time" v-model="updateDaysList[index].sleep" /></span>
-                      </template>
-                      <template v-else>
-                        <span>休憩:{{ item.sleepMinute() / 60 }}時間</span>
-                      </template>
-                    </div>
-                  </v-list-item-subtitle>
-                  <v-divider></v-divider>
-                </v-card>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-card>
+        <timeWorkList :updateDaysList="updateDaysList" :viewDaysList="viewDaysList" />
       </v-col>
     </v-row>
   </div>

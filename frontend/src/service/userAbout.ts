@@ -235,6 +235,16 @@ export const computeds = () => {
     }
     return list
   })
+  const timeList = computed(() => {
+    const list: string[] = []
+    if (workInputList.value) {
+      list.push(...workInputList.value)
+    }
+    if (workList.value) {
+      list.push(...workList.value)
+    }
+    return list
+  })
   const outputDaysList = computed(() => {
     return updateDaysList.filter((item) => item.visible)
   })
@@ -247,7 +257,18 @@ export const computeds = () => {
       }, 0)
   })
 
+  const holiday_session_storage = 'holiday'
+  const getHoliday = () => {
+    const holiday = sessionStorage.getItem(holiday_session_storage)
+    if (holiday) {
+      return JSON.parse(holiday)
+    }
+    return null
+  }
+
   return {
+    holiday_session_storage,
+    getHoliday,
     datePick,
     descriptionText,
     datePickFormat,
@@ -262,6 +283,7 @@ export const computeds = () => {
     allList,
     sltWorkRate,
     startTime,
-    endTime
+    endTime,
+    timeList
   }
 }
